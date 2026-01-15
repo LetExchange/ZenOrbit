@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Zen Orbit - 60秒快速呼吸冥想体验">
+    <meta name="theme-color" content="#0A0A0B">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <title>Zen Orbit</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300&family=Jost:wght@300&display=swap');
+
+        :root {
+            --bg-dark: #0A0A0B;
+            --bg-light: #FEFEFE;
+            --stroke-dark: #E5E5E5;
+            --stroke-light: #333333;
+            --text-dark: rgba(255, 255, 255, 0.8);
+            --text-light: rgba(0, 0, 0, 0.8);
+            --track-dark: rgba(255, 255, 255, 0.1);
+            --track-light: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', 'Jost', sans-serif;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s ease;
+        }
+
+        /* 保留暗色模式，移除浅色模式支持 */
+
+        #app {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #svg-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        #breath-circle {
+            transition: r 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            stroke: var(--stroke-dark);
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3));
+        }
+
+        
+
+        #track-circle {
+            stroke: var(--track-dark);
+            stroke-dasharray: 2 4;
+            fill: none;
+        }
+
+        
+
+        #track-dot {
+            fill: var(--stroke-dark);
+            transition: fill 0.3s ease;
+        }
+
+        
+
+        #text-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: clamp(14px, 2vw, 24px);
+            text-transform: lowercase;
+            opacity: 0.2;
+            transition: opacity 0.5s ease, filter 0.5s ease;
+            pointer-events: none;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        #text-display.active {
+            opacity: 0.8;
+        }
+
+        #text-display.blur {
+            filter: blur(4px);
+        }
+
+        /* 隐藏式UI */
+        .hidden-ui {
+            position: fixed;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .hidden-ui.visible {
+            opacity: 0.2;
+            pointer-events: auto;
+        }
+
+        .hidden-ui.visible:hover {
+            opacity: 0.8;
+        }
+
+        #app-title {
+            top: 20px;
+            left: 20px;
+            font-size: clamp(12px, 1.5vw, 18px);
+            text-transform: lowercase;
+        }
+
+        
+
+        #fullscreen-toggle {
+            top: 20px;
+            right: 20px;
+            font-size: clamp(20px, 3vw, 32px);
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #coffee-link {
+            bottom: 20px;
+            right: 20px;
+            font-size: clamp(20px, 3vw, 32px);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        #privacy-info {
+            bottom: 20px;
+            right: 70px;
+            font-size: clamp(20px, 3vw, 32px);
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #reset-btn {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: clamp(14px, 2vw, 20px);
+            text-transform: lowercase;
+            opacity: 0;
+            pointer-events: none;
+            background: none;
+            border: none;
+            color: inherit;
+            font-family: inherit;
+            font-weight: inherit;
+            letter-spacing: inherit;
+            cursor: pointer;
+            transition: opacity 0.5s ease;
+            padding: 10px 20px;
+        }
+
+        #reset-btn.visible {
+            opacity: 0.6;
+            pointer-events: auto;
+        }
+
+        #reset-btn:hover {
+            opacity: 1;
+        }
+
+        #privacy-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-dark);
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px;
+            width: 90%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+            border: 1px solid var(--stroke-dark);
+        }
+
+        
+
+        #privacy-modal.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #privacy-modal h3 {
+            margin-bottom: 15px;
+            font-size: clamp(16px, 2vw, 20px);
+            text-transform: lowercase;
+        }
+
+        #privacy-modal p {
+            font-size: clamp(12px, 1.5vw, 16px);
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        #privacy-close {
+            background: none;
+            border: none;
+            color: inherit;
+            font-family: inherit;
+            cursor: pointer;
+            font-size: clamp(14px, 2vw, 18px);
+            text-transform: lowercase;
+            margin-top: 10px;
+        }
+
+        #ads-container {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 50;
+        }
+
+        #ads-container.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .ad-placeholder {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: clamp(10px, 1.2vw, 14px);
+            text-transform: lowercase;
+            text-align: center;
+        }
+
+        
+
+        #breath-circle {
+            /* 运行态通过修改 r 控制 20%↔45% 的真实呼吸尺寸 */
+            transition: r 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: 50% 50%;
+        }
+
+        /* idle: 以圆心为中心，半径轻微扩张收缩，象征自然呼吸 */
+        #breath-circle.idle {
+            animation: idle-pulse 5s ease-in-out infinite;
+        }
+
+        @keyframes idle-pulse {
+            0% {
+                transform: scale(0.96);
+            }
+            50% {
+                transform: scale(1.04);
+            }
+            100% {
+                transform: scale(0.96);
+            }
+        }
+
+        #breath-circle.inhaling {
+            transition: r 4s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: none; /* 进入正式呼吸时，关闭 idle 的 scale 干扰 */
+        }
+
+        #breath-circle.holding {
+            transition: none;
+        }
+
+        #breath-circle.exhaling {
+            transition: r 6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #breath-circle.complete {
+            transition: r 1s ease-out;
+            transform: none;
+            fill: var(--stroke-dark);
+        }
+
+        
+
+        /* 轨道点旋转动画 */
+        @keyframes orbit {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        #track-dot-container {
+            transform-origin: 50% 50%;
+            animation: orbit 60s linear infinite;
+        }
+
+        #track-dot-container.paused {
+            animation-play-state: paused;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="svg-container">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                <!-- 轨道圆环 -->
+                <circle id="track-circle" cx="50" cy="50" r="45" stroke-width="0.2"/>
+                
+                <!-- 轨道点容器 -->
+                <g id="track-dot-container" class="paused">
+                    <circle id="track-dot" cx="50" cy="5" r="0.3"/>
+                </g>
+                
+                <!-- 呼吸圆环 -->
+                <circle id="breath-circle" cx="50" cy="50" r="20" stroke-width="0.1" class="idle"/>
+            </svg>
+        </div>
+
+        <!-- 文案显示 -->
+        <div id="text-display">click to begin</div>
+
+        <!-- 重置按钮 -->
+        <button id="reset-btn">reset</button>
+
+        <!-- 隐藏式UI -->
+        <div id="app-title" class="hidden-ui">pause. breathe. reset.</div>
+        
+        <div id="fullscreen-toggle" class="hidden-ui">⛶</div>
+        <a id="coffee-link" class="hidden-ui" href="https://buymeacoffee.com/xyz" target="_blank" rel="noopener">☕</a>
+        <div id="privacy-info" class="hidden-ui">?</div>
+
+        <!-- 隐私说明模态框 -->
+        <div id="privacy-modal">
+            <h3>privacy</h3>
+            <p>100% Private. No data leaves your browser.</p>
+            <p>This app runs entirely in your browser. No cookies, no tracking, no analytics.</p>
+            <button id="privacy-close">close</button>
+        </div>
+
+        <!-- 广告容器 -->
+        <div id="ads-container">
+            <div class="ad-placeholder">Partner: Ergonomic Chair by XYZ</div>
+        </div>
+    </div>
+
+    <script>
+        // 应用状态
+        const appState = {
+            phase: 'idle', // idle | running | complete
+            elapsed: 0,
+            total: 60000, // 60秒
+            isDarkMode: true,
+            isFullscreen: false,
+            breathingCycle: 0,
+            animationFrame: null,
+            startTime: null,
+            pausedTime: 0
+        };
+
+        // DOM元素
+        const elements = {
+            body: document.body,
+            breathCircle: document.getElementById('breath-circle'),
+            trackDotContainer: document.getElementById('track-dot-container'),
+            textDisplay: document.getElementById('text-display'),
+            resetBtn: document.getElementById('reset-btn'),
+            appTitle: document.getElementById('app-title'),
+            fullscreenToggle: document.getElementById('fullscreen-toggle'),
+            coffeeLink: document.getElementById('coffee-link'),
+            privacyInfo: document.getElementById('privacy-info'),
+            privacyModal: document.getElementById('privacy-modal'),
+            privacyClose: document.getElementById('privacy-close'),
+            adsContainer: document.getElementById('ads-container'),
+            svgContainer: document.getElementById('svg-container')
+        };
+
+        // 完成文案库
+        const completionMessages = [
+            "mind cleared.",
+            "ready for what's next.",
+            "you are back.",
+            "one task at a time.",
+            "deep breaths, clear mind.",
+            "you've got this."
+        ];
+        let textFadeTimeout;
+
+        // 计算圆环半径（基于SVG viewBox 100x100）
+        function calculateCircleRadius(scale) {
+            return 20 * scale; // 基础半径20，乘以缩放比例
+        }
+
+        // 更新圆环尺寸
+        function updateCircleSize() {
+            const minSize = Math.min(window.innerWidth, window.innerHeight);
+            const svgSize = minSize * 0.7; // 保留15%负空间
+            elements.svgContainer.style.width = `${svgSize}px`;
+            elements.svgContainer.style.height = `${svgSize}px`;
+            
+            // 更新圆环半径
+            const baseRadius = calculateCircleRadius(1);
+            const exhaleRadius = baseRadius * 0.75;
+            const inhaleRadius = baseRadius * 1.25;
+            
+            if (appState.phase === 'idle') {
+                elements.breathCircle.setAttribute('r', baseRadius);
+            } else if (appState.phase === 'complete') {
+                elements.breathCircle.setAttribute('r', baseRadius);
+            }
+        }
+
+        // 初始化
+        function init() {
+            updateCircleSize();
+            setupEventListeners();
+            checkDarkMode();
+            registerServiceWorker();
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 点击启动
+            elements.svgContainer.addEventListener('click', handleStart);
+            elements.textDisplay.addEventListener('click', handleStart);
+
+            // 重置按钮
+            elements.resetBtn.addEventListener('click', handleReset);
+
+            // 主题切换已移除（仅保留暗色模式）
+
+            // 全屏切换
+            elements.fullscreenToggle.addEventListener('click', toggleFullscreen);
+            document.addEventListener('dblclick', toggleFullscreen);
+
+            // 隐私说明
+            elements.privacyInfo.addEventListener('click', showPrivacyModal);
+            elements.privacyClose.addEventListener('click', hidePrivacyModal);
+            elements.privacyModal.addEventListener('click', (e) => {
+                if (e.target === elements.privacyModal) {
+                    hidePrivacyModal();
+                }
+            });
+
+            // 隐藏式UI显示
+            let uiTimeout;
+            const showUI = () => {
+                clearTimeout(uiTimeout);
+                document.querySelectorAll('.hidden-ui').forEach(el => {
+                    el.classList.add('visible');
+                });
+                uiTimeout = setTimeout(() => {
+                    if (appState.phase === 'idle' || appState.phase === 'complete') {
+                        document.querySelectorAll('.hidden-ui').forEach(el => {
+                            el.classList.remove('visible');
+                        });
+                    }
+                }, 1500);
+            };
+
+            document.addEventListener('mousemove', showUI);
+            document.addEventListener('touchstart', showUI);
+
+            // 窗口大小改变
+            window.addEventListener('resize', () => {
+                updateCircleSize();
+                if (appState.phase === 'running') {
+                    updateBreathingAnimation();
+                }
+            });
+
+            // 页面焦点处理
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    pauseAnimation();
+                } else {
+                    resumeAnimation();
+                }
+            });
+
+            // 全屏变化监听
+            document.addEventListener('fullscreenchange', () => {
+                appState.isFullscreen = !!document.fullscreenElement;
+                updateAdsVisibility();
+            });
+        }
+
+        // 检查暗色模式
+        function checkDarkMode() {
+            appState.isDarkMode = true;
+            elements.body.classList.remove('light-mode');
+        }
+
+        // 切换主题已移除（仅保留暗色模式）
+
+        // 切换全屏
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('无法进入全屏:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // 显示隐私说明
+        function showPrivacyModal() {
+            elements.privacyModal.classList.add('visible');
+        }
+
+        // 隐藏隐私说明
+        function hidePrivacyModal() {
+            elements.privacyModal.classList.remove('visible');
+        }
+
+        // 处理启动
+        function handleStart(e) {
+            if (appState.phase === 'running') {
+                elements.textDisplay.textContent = "enjoy the stillness.";
+                elements.textDisplay.classList.add('active');
+                setTimeout(() => {
+                    elements.textDisplay.classList.remove('active');
+                }, 2000);
+                return;
+            }
+
+            if (appState.phase === 'idle') {
+                appState.phase = 'running';
+                appState.startTime = performance.now();
+                appState.elapsed = 0;
+                appState.breathingCycle = 0;
+                appState.pausedTime = 0;
+
+                elements.textDisplay.classList.remove('active');
+                elements.textDisplay.style.opacity = '0';
+                elements.breathCircle.classList.remove('idle', 'complete');
+                elements.trackDotContainer.style.animation = 'orbit 60s linear infinite';
+                elements.trackDotContainer.classList.remove('paused');
+
+                startBreathingCycle();
+                startTimer();
+            }
+        }
+
+        // 开始呼吸循环
+        function startBreathingCycle() {
+            if (appState.phase !== 'running') return;
+
+            const baseRadius = calculateCircleRadius(1);
+            const exhaleRadius = baseRadius * 0.75;
+            const inhaleRadius = baseRadius * 1.25;
+            
+            // 吸气
+            elements.breathCircle.classList.remove('exhaling', 'holding', 'complete');
+            elements.breathCircle.classList.add('inhaling');
+            elements.breathCircle.setAttribute('r', exhaleRadius);
+            // 使用setTimeout确保transition生效
+            setTimeout(() => {
+                elements.breathCircle.setAttribute('r', inhaleRadius);
+            }, 10);
+            updateText('inhale', true);
+
+            setTimeout(() => {
+                if (appState.phase !== 'running') return;
+                // 停留0.5秒
+                elements.breathCircle.classList.remove('inhaling');
+                elements.breathCircle.classList.add('holding');
+                
+                setTimeout(() => {
+                    if (appState.phase !== 'running') return;
+                    // 呼气
+                    elements.breathCircle.classList.remove('holding');
+                    elements.breathCircle.classList.add('exhaling');
+                    elements.breathCircle.setAttribute('r', inhaleRadius);
+                    // 使用setTimeout确保transition生效
+                    setTimeout(() => {
+                        elements.breathCircle.setAttribute('r', exhaleRadius);
+                    }, 10);
+                    updateText('exhale', true);
+
+                    setTimeout(() => {
+                        if (appState.phase !== 'running') return;
+                        elements.breathCircle.classList.remove('exhaling');
+                        appState.breathingCycle++;
+                        
+                        if (appState.breathingCycle < 6) {
+                            startBreathingCycle();
+                        }
+                    }, 6000);
+                }, 500);
+            }, 4000);
+        }
+
+        // 更新文案
+        function updateText(type, show) {
+            if (!show) {
+                elements.textDisplay.style.opacity = '0';
+                return;
+            }
+
+            const texts = {
+                inhale: 'inhale',
+                exhale: 'exhale'
+            };
+
+            elements.textDisplay.textContent = texts[type] || '';
+            clearTimeout(textFadeTimeout);
+            elements.textDisplay.classList.add('active');
+            elements.textDisplay.style.opacity = '0.8';
+            const duration = type === 'inhale' ? 4000 : 6000;
+            textFadeTimeout = setTimeout(() => {
+                elements.textDisplay.style.opacity = '0.2';
+                elements.textDisplay.classList.remove('active');
+            }, Math.max(0, duration - 500));
+        }
+
+        // 开始计时器
+        function startTimer() {
+            function updateTimer() {
+                if (appState.phase !== 'running') return;
+
+                const now = performance.now();
+                appState.elapsed = now - appState.startTime - appState.pausedTime;
+
+                if (appState.elapsed >= appState.total) {
+                    completeSession();
+                } else {
+                    appState.animationFrame = requestAnimationFrame(updateTimer);
+                }
+            }
+            appState.animationFrame = requestAnimationFrame(updateTimer);
+        }
+
+        // 完成会话
+        function completeSession() {
+            appState.phase = 'complete';
+            cancelAnimationFrame(appState.animationFrame);
+
+            const baseRadius = calculateCircleRadius(1);
+            elements.breathCircle.classList.remove('inhaling', 'exhaling', 'holding', 'complete');
+            elements.breathCircle.classList.add('idle');
+            elements.breathCircle.setAttribute('r', baseRadius);
+            elements.breathCircle.removeAttribute('fill');
+            
+            elements.trackDotContainer.classList.add('paused');
+            elements.trackDotContainer.style.animation = 'none';
+            elements.trackDotContainer.style.transform = '';
+
+            const message = completionMessages[Math.floor(Math.random() * completionMessages.length)];
+            elements.textDisplay.textContent = message;
+            elements.textDisplay.style.opacity = '0.8';
+            elements.textDisplay.classList.add('active');
+
+            elements.resetBtn.classList.add('visible');
+            updateAdsVisibility();
+        }
+
+        // 处理重置
+        function handleReset() {
+            appState.phase = 'idle';
+            appState.elapsed = 0;
+            appState.breathingCycle = 0;
+            appState.pausedTime = 0;
+            cancelAnimationFrame(appState.animationFrame);
+
+            const baseRadius = calculateCircleRadius(1);
+            elements.breathCircle.classList.remove('inhaling', 'exhaling', 'holding', 'complete');
+            elements.breathCircle.classList.add('idle');
+            elements.breathCircle.setAttribute('r', baseRadius);
+            elements.breathCircle.removeAttribute('fill');
+            
+            elements.trackDotContainer.classList.add('paused');
+            elements.trackDotContainer.style.animation = 'none';
+            elements.trackDotContainer.style.transform = '';
+
+            elements.textDisplay.textContent = 'click to begin';
+            elements.textDisplay.style.opacity = '0.2';
+            elements.textDisplay.classList.remove('active');
+
+            elements.resetBtn.classList.remove('visible');
+            elements.adsContainer.classList.remove('visible');
+        }
+
+        // 暂停动画
+        function pauseAnimation() {
+            if (appState.phase === 'running') {
+                const computedStyle = window.getComputedStyle(elements.trackDotContainer);
+                const transform = computedStyle.transform;
+                if (transform && transform !== 'none') {
+                    // 保存当前transform状态
+                    elements.trackDotContainer.style.transform = transform;
+                }
+                elements.trackDotContainer.classList.add('paused');
+                if (appState.startTime) {
+                    appState.pausedTime += performance.now() - appState.startTime;
+                }
+            }
+        }
+
+        // 恢复动画
+        function resumeAnimation() {
+            if (appState.phase === 'running') {
+                appState.startTime = performance.now();
+                elements.trackDotContainer.classList.remove('paused');
+                elements.trackDotContainer.style.transform = '';
+            }
+        }
+
+        // 更新呼吸动画（窗口大小改变时）
+        function updateBreathingAnimation() {
+            if (appState.phase !== 'running') return;
+            
+            const baseRadius = calculateCircleRadius(1);
+            const exhaleRadius = baseRadius * 0.75;
+            const inhaleRadius = baseRadius * 1.25;
+            
+            // 根据当前状态设置半径
+            if (elements.breathCircle.classList.contains('inhaling') || 
+                elements.breathCircle.classList.contains('holding')) {
+                elements.breathCircle.setAttribute('r', inhaleRadius);
+            } else if (elements.breathCircle.classList.contains('exhaling')) {
+                elements.breathCircle.setAttribute('r', exhaleRadius);
+            }
+        }
+
+        // 更新广告可见性
+        function updateAdsVisibility() {
+            if (appState.phase === 'complete' && !appState.isFullscreen) {
+                elements.adsContainer.classList.add('visible');
+            } else {
+                elements.adsContainer.classList.remove('visible');
+            }
+        }
+
+        // 注册Service Worker
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/service-worker.js')
+                        .then(reg => console.log('Service Worker registered'))
+                        .catch(err => console.log('Service Worker registration failed:', err));
+                });
+            }
+        }
+
+        // 初始化应用
+        init();
+    </script>
+</body>
+</html>
